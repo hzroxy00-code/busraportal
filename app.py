@@ -1,25 +1,65 @@
 from flask import Flask, render_template_string
 import datetime
-import random
 
 app = Flask(__name__)
 
 NAME = "Büşra"
 START_DATE = datetime.date(2025, 12, 17)
 
+# Sevgili notları (güzelleştirilmiş)
 NOTES = [
-    "Seni her düşündüğümde kalbim hızlanıyor 💖",
-    "Gülüşün günümü aydınlatıyor 🌸",
-    "Beraber geçirdiğimiz her an çok değerli 💘",
-    "Sen yanımdayken dünya daha güzel 🦖💗",
-    "Büşra, sen benim en tatlı maceramsın 💌",
-    "Her günümüz bir öncekinden daha özel 💕",
+    "Seninle geçen her saniye, kalbimin en güzel melodisi oluyor 🎶💖",
+    "Gözlerinde kaybolmak, dünyadaki en huzurlu yolculuk benim için ✨",
+    "Sen benim en güzel tesadüfüm, en doğru seçimim ve en büyük şansım 💕",
+    "Yanımda olduğunda dünya daha renkli, daha umut dolu 🌸",
+    "Varlığın, en karanlık gecelerime bile ışık saçan bir yıldız 🌙⭐",
+    "Her günümüz, bir öncekinden daha özel ve daha unutulmaz 💘",
+    "Seninle hayat, şiir gibi akıyor; her mısrası aşkla dolu 📖💗",
+    "Kalbim seninle attığında, tüm evren daha anlamlı oluyor 🌍💞",
+    "Sen benim en güzel hikâyem, en değerli sırlarımsın 💌",
+    "Birlikteyken zaman duruyor; sadece biz kalıyoruz 💍💖",
 ]
 
+# Özel günler (gün, ay formatında)
+SPECIAL_DATES = {
+    "Tanışma Günü 💞": (17, 12),
+    "Büşra’nın Doğum Günü 🎂": (28, 10),
+    "Yıl Dönümümüz 💍": (17, 12),
+}
+
+# Türkçe aylar
+MONTHS_TR = {
+    1: "Ocak", 2: "Şubat", 3: "Mart", 4: "Nisan",
+    5: "Mayıs", 6: "Haziran", 7: "Temmuz", 8: "Ağustos",
+    9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık",
+}
+
+def format_date_tr(date):
+    return f"{date.day} {MONTHS_TR[date.month]} {date.year}"
+
 def days_together():
-    today = datetime.date.today()
+    from datetime import datetime, timezone, timedelta
+    tz = timezone(timedelta(hours=3))  # Türkiye UTC+3
+    today = datetime.now(tz).date()
     delta = today - START_DATE
     return delta.days if delta.days > 0 else 0
+
+def days_until(date):
+    from datetime import datetime, timezone, timedelta
+    tz = timezone(timedelta(hours=3))
+    today = datetime.now(tz).date()
+    delta = (date - today).days
+    return delta if delta >= 0 else 0
+
+def next_occurrence(day, month):
+    from datetime import datetime, timezone, timedelta, date
+    tz = timezone(timedelta(hours=3))
+    today = datetime.now(tz).date()
+    year = today.year
+    target = date(year, month, day)
+    if target < today:
+        target = date(year + 1, month, day)
+    return target
 
 HTML = """
 <!doctype html>
@@ -29,21 +69,44 @@ HTML = """
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Büşra’nın Özel Portalı 💖</title>
 <style>
-body { margin:0; font-family: Arial; overflow:hidden; background:#fdeff2; transition: background 0.5s;}
-canvas {display:block;}
-#ui {position:fixed; top:10px; right:10px; font-size:14px;}
-#musicToggle {position:fixed; bottom:10px; left:10px; padding:8px 12px; border-radius:20px; background:#fff; cursor:pointer;}
-#nightToggle {position:fixed; bottom:10px; right:10px; padding:8px 12px; border-radius:20px; background:#fff; cursor:pointer;}
-#menu {position:fixed; top:10px; left:10px; background:#fff; padding:10px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15);}
-#menu button {margin:3px;}
-#content {position:absolute; top:60px; left:0; width:100%; text-align:center;}
-#daysCounter, #notesArea {display:none; margin-top:50px; font-family: 'Georgia', serif; cursor:pointer;}
-#daysNumber {font-size:80px; color:#ff6f91;}
-#daysText {font-size:18px; color:#555;}
-#note {font-size:14px; color:#333; margin-top:5px;}
-#startBtn, #stopBtn {margin:15px; padding:10px 20px; border-radius:20px; background:#ff6f91; border:none; color:#fff; cursor:pointer;}
-#notesArea {font-size:20px; color:#ff4f91; min-height:120px; display:flex; align-items:center; justify-content:center; flex-direction:column;}
-#changeNote {margin-top:15px; padding:8px 16px; border-radius:20px; background:#fff; border:none; cursor:pointer;}
+  body { margin:0; font-family: Arial, sans-serif; overflow:hidden; background:#fdeff2; transition: background 0.5s;}
+  canvas {display:block;}
+  #ui {position:fixed; top:10px; right:10px; font-size:14px;}
+  #musicToggle {position:fixed; bottom:10px; left:10px; padding:8px 12px; border-radius:20px; background:#fff; cursor:pointer;}
+  #nightToggle {position:fixed; bottom:10px; right:10px; padding:8px 12px; border-radius:20px; background:#fff; cursor:pointer;}
+  #menu {position:fixed; top:10px; left:10px; background:#fff; padding:10px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+  #menu button {margin:3px;}
+  #content {position:absolute; top:60px; left:0; width:100%; text-align:center;}
+  #daysCounter, #notesArea, #specialDays {display:none; margin-top:50px; font-family: Georgia, 'Times New Roman', serif;}
+
+  /* Gün sayacı pastel pembe tonları */
+  #daysNumber {
+    font-size: 100px;
+    background: linear-gradient(45deg, #ffc1cc, #ffb6c1, #ff9eb1, #ff85a1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: popIn 600ms ease;
+  }
+  #daysText {
+    font-size: 24px;
+    color: #ff4f91;
+    margin-top: 10px;
+    letter-spacing: 0.4px;
+  }
+  @keyframes popIn {
+    0% { transform: scale(0.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  #notesArea {font-size:20px; color:#ff4f91; min-height:120px; display:flex; align-items:center; justify-content:center; flex-direction:column;}
+  #currentNote {padding:0 16px; transition: opacity 0.5s;}
+  #changeNote {margin-top:15px; padding:8px 16px; border-radius:20px; background:#fff; border:none; cursor:pointer;}
+  #specialDays h2 {color:#ff4f91;}
+  #specialDays ul {list-style:none; padding:0; margin:0 auto; max-width:600px;}
+  #specialDays li {margin:12px; padding:12px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center;}
+  .highlight {background:#fff0f5;}
+  .normal {background:#f9f9f9;}
+  .badge {background:#ff6f91; color:#fff; padding:4px 10px; border-radius:20px; font-size:12px;}
 </style>
 </head>
 <body>
@@ -52,26 +115,36 @@ canvas {display:block;}
 <div id="ui"></div>
 
 <div id="menu">
-<button onclick="showSection('game')">Oyun 🦖</button>
-<button onclick="showSection('days')">Gün Sayacı 📅</button>
-<button onclick="showSection('notes')">Sevgili Notları 💌</button>
+  <button onclick="showSection('days')">Gün Sayacı 📅</button>
+  <button onclick="showSection('notes')">Sevgili Notları 💌</button>
+  <button onclick="showSection('special')">Özel Günler 🎉</button>
 </div>
 
 <div id="content">
   <div id="daysCounter">
       <div id="daysNumber">{{ days }}</div>
-      <div id="daysText">gündür birlikteyiz</div>
-  </div>
-
-  <div id="gameControls">
-    <button id="startBtn" onclick="togglePause()">Başlat 🦖</button>
-    <div id="note">Bu oyun sana özel 💖</div>
-    <button id="stopBtn" onclick="togglePause()" style="display:none;">Durdur ⏸️</button>
+      <div id="daysText">gündür birlikteyiz 💖</div>
   </div>
 
   <div id="notesArea">
     <div id="currentNote"></div>
     <button id="changeNote" onclick="nextNote()">💌 Yeni Not</button>
+  </div>
+
+  <div id="specialDays">
+    <h2>Özel Günlerimiz ✨</h2>
+    <ul>
+      {% for name, dm in special_dates.items() %}
+        {% set target = next_occurrence(dm[0], dm[1]) %}
+        <li class="{% if 'Doğum Günü' in name %}highlight{% else %}normal{% endif %}">
+          <div>
+            <strong style="color:#ff6f91;">{{ name }}</strong><br>
+            <span>{{ format_date_tr(target) }}</span>
+          </div>
+          <span class="badge">{{ days_until(target) }} gün kaldı</span>
+        </li>
+      {% endfor %}
+    </ul>
   </div>
 </div>
 
@@ -79,165 +152,111 @@ canvas {display:block;}
 <div id="nightToggle" onclick="toggleNight()">🌙/☀️</div>
 
 <audio id="music" loop>
-  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_7b7f0c6a53.mp3">
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_7b7f0c6a53.mp3" type="audio/mpeg">
 </audio>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const music = document.getElementById("music");
-let musicOn = true;
-let nightMode = false;
-let paused = true;
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const music = document.getElementById("music");
+  let musicOn = false;
+  let nightMode = false;
+  let w, h;
 
-let w,h;
-function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
-window.addEventListener("resize", resize);
-resize();
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
 
-// Arka plan kalpleri
-let bgHearts = Array.from({length:18},()=>({x:Math.random()*w,y:Math.random()*h,speed:0.3+Math.random()}));
-let hearts=[];
+  // Arka plan kalpleri
+  let bgHearts = Array.from({length: 18}, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    speed: 0.3 + Math.random()
+  }));
 
-// Menü
-function showSection(section){
-    document.getElementById("game").style.display='none';
-    document.getElementById("daysCounter").style.display='none';
-    document.getElementById("notesArea").style.display='none';
-    document.getElementById("gameControls").style.display='none';
+  function showSection(section){
+    document.getElementById("daysCounter").style.display = 'none';
+    document.getElementById("notesArea").style.display = 'none';
+    document.getElementById("specialDays").style.display = 'none';
+    if(section === 'days'){ document.getElementById("daysCounter").style.display = 'block'; music.pause(); }
+    if(section === 'notes'){ document.getElementById("notesArea").style.display = 'flex'; music.pause(); }
+    if(section === 'special'){ document.getElementById("specialDays").style.display = 'block'; music.pause(); }
+  }
 
-    if(section==='game'){
-        document.getElementById("game").style.display='block';
-        document.getElementById("gameControls").style.display='block';
+  function toggleMusic(){
+    musicOn = !musicOn;
+    if(musicOn){
+      music.play().catch(()=>{});
+      document.getElementById('musicToggle').innerText = '🎵';
+    } else {
+      music.pause();
+      document.getElementById('musicToggle').innerText = '🔇';
     }
-    if(section==='days'){
-        document.getElementById("daysCounter").style.display='block';
-        paused = true; // gün sayacı açılınca oyun duracak
-        document.getElementById('stopBtn').style.display='none';
-        document.getElementById('startBtn').style.display='inline-block';
-        music.pause();
-    }
-    if(section==='notes'){
-        document.getElementById("notesArea").style.display='flex';
-        paused = true; // notlar açılınca oyun duracak
-        document.getElementById('stopBtn').style.display='none';
-        document.getElementById('startBtn').style.display='inline-block';
-        music.pause();
-    }
-}
+  }
 
-// Music toggle
-function toggleMusic(){ musicOn=!musicOn; if(musicOn && !paused){ music.play().catch(()=>{}); document.getElementById('musicToggle').innerText='🎵'; } else { music.pause(); document.getElementById('musicToggle').innerText='🔇'; } }
+  function toggleNight(){
+    nightMode = !nightMode;
+    document.body.style.background = nightMode ? '#1c1c2b' : '#fdeff2';
+  }
 
-// Night toggle
-function toggleNight(){ nightMode=!nightMode; document.body.style.background=nightMode?'#1c1c2b':'#fdeff2'; }
-
-// Gün sayacı tıklanınca mini kalpler
-const daysCounter=document.getElementById('daysCounter');
-daysCounter.addEventListener('click',function(e){
-    for(let i=0;i<15;i++){
-        hearts.push({x:e.clientX,y:e.clientY,speed:Math.random()*2+1,size:10+Math.random()*10});
-    }
-});
-
-// Kalpler çizimi
-function drawHearts(){
-    ctx.clearRect(0,0,w,h);
-    bgHearts.forEach(hh=>{
-        hh.y+=hh.speed;
-        if(hh.y>h){ hh.y=-20; hh.x=Math.random()*w; }
-        ctx.font = "18px serif";
-        ctx.fillText("💗", hh.x, hh.y);
+  function drawHearts(){
+    ctx.clearRect(0, 0, w, h);
+    bgHearts.forEach(hh => {
+      hh.y += hh.speed;
+      if(hh.y > h){
+        hh.y = -20;
+        hh.x = Math.random() * w;
+      }
+      ctx.font = "18px serif";
+      ctx.fillText("💗", hh.x, hh.y);
     });
-    hearts.forEach((h,i)=>{
-        h.y-=h.speed; h.size*=0.97;
-        if(h.size<1) hearts.splice(i,1);
-        else{ ctx.font=h.size+'px serif'; ctx.fillText('💖',h.x,h.y); }
-    });
-}
+    requestAnimationFrame(drawHearts);
+  }
+  drawHearts();
 
-// Dino Run
-let dino={x:80,y:h-110,vy:0,size:40,grounded:true};
-let obstacles=[], score=0, bestScore=localStorage.getItem('bestScore')||0;
-let speed=6, gravity=1, jumpForce=-18, spawnTimer=0;
+  // Sevgili notları
+  let currentNoteIndex = 0;
+  const notes = {{ notes|tojson }};
+  function nextNote(){
+    currentNoteIndex = (currentNoteIndex + 1) % notes.length;
+    const noteDiv = document.getElementById('currentNote');
+    noteDiv.style.opacity = 0;
+    setTimeout(() => {
+      noteDiv.innerText = notes[currentNoteIndex];
+      noteDiv.style.opacity = 1;
+    }, 500);
+  }
+  document.getElementById('currentNote').innerText = notes[currentNoteIndex];
 
-function togglePause(){
-    paused = !paused;
-    document.getElementById('startBtn').style.display = paused ? 'inline-block' : 'none';
-    document.getElementById('stopBtn').style.display = paused ? 'none' : 'inline-block';
-    if(!paused && musicOn){ music.play().catch(()=>{}); } else { music.pause(); }
-}
+  // Saat/Tarih (tr-TR)
+  function updateClock(){
+    const now = new Date();
+    document.getElementById("ui").innerText = now.toLocaleString("tr-TR");
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
 
-// Kontroller
-document.addEventListener('keydown',e=>{ if(e.code==='Space') jump(); });
-document.addEventListener('touchstart',jump);
-function jump(){ if(dino.grounded && !paused){ dino.vy=jumpForce; dino.grounded=false; } }
-
-function spawnObstacle(){ spawnTimer++; if(spawnTimer>80+Math.random()*60){ obstacles.push({x:w+40}); spawnTimer=0; } }
-
-function loop(){
-    requestAnimationFrame(loop);
-    drawHearts();
-
-    if(paused) return;
-
-    // Zemin
-    ctx.fillStyle=nightMode?'#aaa':'#333';
-    ctx.fillRect(0,h-70,w,2);
-
-    // Dino physics
-    dino.vy+=gravity;
-    dino.y+=dino.vy;
-    if(dino.y>=h-70-dino.size){ dino.y=h-70-dino.size; dino.vy=0; dino.grounded=true; }
-
-    // Draw dino
-    ctx.font='40px serif'; ctx.fillText('🦖',dino.x,dino.y+dino.size);
-
-    // Obstacles
-    spawnObstacle();
-    obstacles.forEach((obs,i)=>{
-        obs.x-=speed;
-        ctx.font='36px serif';
-        ctx.fillText('🌵',obs.x,h-75);
-        if(dino.x+30>obs.x && dino.x<obs.x+30 && dino.y+dino.size>h-75) endGame();
-    });
-
-    speed+=0.002;
-    score++;
-    document.getElementById('ui').innerText='Skor: '+score+' | Rekor: '+bestScore;
-}
-
-function endGame(){
-    paused=true;
-    music.pause();
-    document.getElementById('stopBtn').style.display='none';
-    document.getElementById('startBtn').style.display='inline-block';
-    if(score>bestScore){ bestScore=score; localStorage.setItem('bestScore',score); bestScore=score; }
-    let msg=score<300?"Tatlı bir başlangıç 💖":score<800?"Kalbim seninle gurur duyuyor 💘":"Büşra, bu dinozor kalbimi tamamen kazandı 🦖💖";
-    alert("Oyun bitti!\\nSkor: "+score+"\\n"+msg); 
-}
-
-// Sevgili notları
-let currentNoteIndex = 0;
-const notes = {{ notes|tojson }};
-function nextNote(){
-    currentNoteIndex = (currentNoteIndex+1)%notes.length;
-    document.getElementById('currentNote').innerText = notes[currentNoteIndex];
-}
-document.getElementById('currentNote').innerText = notes[currentNoteIndex];
-
-// Başlangıç
-loop();
-setInterval(drawHearts,16);
+  // Varsayılan başlangıç bölümü
+  showSection('notes');
 </script>
-
 </body>
 </html>
 """
 
 @app.route("/")
 def home():
-    return render_template_string(HTML, days=days_together(), notes=NOTES)
+    return render_template_string(
+        HTML,
+        days=days_together(),
+        notes=NOTES,
+        special_dates=SPECIAL_DATES,
+        days_until=days_until,
+        format_date_tr=format_date_tr,
+        next_occurrence=next_occurrence
+    )
 
 if __name__ == "__main__":
     app.run(debug=False)
